@@ -9,6 +9,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "ANAMBOARY_SECRET_KEY_RENDER_2025")
 
+# Configuration production
+app.config.update(
+    DEBUG=False,
+    TESTING=False,
+    SECRET_KEY=os.environ.get("SECRET_KEY", "ANAMBOARY_SECRET_KEY_RENDER_2025"),
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=1800  # 30 minutes
+)
+
 DB_PATH = os.path.join(os.path.dirname(__file__), 'anamboary.db')
 
 # ---------------- DATABASE ----------------
@@ -376,5 +387,6 @@ def admin_logout():
 
 # ---------------- LANCEMENT ----------------
 if __name__ == "__main__":
+    from waitress import serve
     port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    serve(app, host='0.0.0.0', port=port)
