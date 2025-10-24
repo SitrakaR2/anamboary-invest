@@ -319,6 +319,51 @@ def logout():
     return redirect('/')
 
 
+# ---------------- ADMIN DASHBOARD ----------------
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_login():
+    # Login admin tsotra
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username == "admin" and password == "anamboary@2025":
+            session['is_admin'] = True
+            return redirect('/admin/dashboard')
+        else:
+            flash("Identifiants incorrects", "error")
+            return redirect('/admin')
+    return render_template('admin_login.html')
+
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if not session.get('is_admin'):
+        return redirect('/admin')
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id, full_name, phone_number FROM users")
+    users = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT u.full_name, l.login_time, l.ip_address
+        FROM user_logins l
+        JOIN users u ON l.user_id = u.id
+        ORDER BY l.login_time DESC
+    """)
+    logs = cursor.fetchall()
+
+    conn.close()
+    return render_template('admin_dashboard.html', users=users, logs=logs)
+
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('is_admin', None)
+    flash("Déconnecté de l'administration", "info")
+    return redirect('/')
+
 # ---------------- LANCEMENT ----------------
 if __name__ == "__main__":
     if not os.path.exists(DB_PATH):
