@@ -11,13 +11,12 @@ app.secret_key = os.environ.get("SECRET_KEY", "ANAMBOARY_SECRET_KEY_RENDER_2025"
 
 # Configuration production
 app.config.update(
-    DEBUG=False,
-    TESTING=False,
+    DEBUG=os.environ.get("DEBUG", "False").lower() == "true",
     SECRET_KEY=os.environ.get("SECRET_KEY", "ANAMBOARY_SECRET_KEY_RENDER_2025"),
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=1800  # 30 minutes
+    PERMANENT_SESSION_LIFETIME=3600
 )
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'anamboary.db')
@@ -99,6 +98,14 @@ with app.app_context():
 def generate_reference():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
+def validate_phone(phone):
+    return phone.strip().isdigit() and len(phone) >= 8
+
+# ---------------- SESSION MANAGEMENT ----------------
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+
 # ---------------- ROUTES ----------------
 @app.route('/')
 def index():
@@ -108,6 +115,9 @@ def index():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    if 'user_id' in session:
+        return redirect('/dashboard')
+        
     if request.method == 'POST':
         full_name = request.form['full_name'].strip()
         phone = request.form['phone'].strip()
@@ -119,6 +129,10 @@ def register():
 
         if len(password) < 4:
             flash("Le mot de passe doit contenir au moins 4 caractères.", "error")
+            return render_template('register.html')
+
+        if not validate_phone(phone):
+            flash("Numéro de téléphone invalide.", "error")
             return render_template('register.html')
 
         conn = get_db()
@@ -140,6 +154,7 @@ def register():
             flash("Inscription réussie ! Veuillez vous connecter.", "success")
             return redirect('/login')
         except Exception as e:
+            conn.rollback()
             flash("Erreur lors de l'inscription. Veuillez réessayer.", "error")
             return render_template('register.html')
         finally:
@@ -149,6 +164,9 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if 'user_id' in session:
+        return redirect('/dashboard')
+        
     if request.method == 'POST':
         phone = request.form['phone'].strip()
         password = request.form['password'].strip()
@@ -165,8 +183,10 @@ def login():
             user = cursor.fetchone()
 
             if user and check_password_hash(user['password'], password):
+                session.permanent = True
                 session['user_id'] = user['id']
                 session['full_name'] = user['full_name']
+                session['phone'] = user['phone_number']
                 
                 cursor.execute(
                     "INSERT INTO user_logins (user_id, login_time, ip_address) VALUES (?, ?, ?)",
@@ -174,7 +194,7 @@ def login():
                 )
                 conn.commit()
                 
-                flash("Connexion réussie !", "success")
+                flash(f"Bienvenue {user['full_name']} !", "success")
                 return redirect('/dashboard')
             else:
                 flash("Numéro ou mot de passe incorrect.", "error")
@@ -190,49 +210,62 @@ def login():
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
+        flash("Veuillez vous connecter pour accéder au dashboard.", "error")
         return redirect('/login')
 
     conn = get_db()
     cursor = conn.cursor()
+    
+    try:
+        # Vérifier si l'utilisateur existe toujours
+        cursor.execute("SELECT * FROM users WHERE id=?", (session['user_id'],))
+        user = cursor.fetchone()
+        
+        if not user:
+            session.clear()
+            flash("Session expirée. Veuillez vous reconnecter.", "error")
+            return redirect('/login')
 
-    cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
-    wallet = cursor.fetchone()
-    balance = wallet['balance'] if wallet else 0
+        cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
+        wallet = cursor.fetchone()
+        balance = wallet['balance'] if wallet else 0
 
-    cursor.execute("SELECT * FROM transactions WHERE user_id=? ORDER BY timestamp DESC LIMIT 5", (session['user_id'],))
-    transactions = cursor.fetchall()
+        cursor.execute("SELECT * FROM transactions WHERE user_id=? ORDER BY timestamp DESC LIMIT 5", (session['user_id'],))
+        transactions = cursor.fetchall()
 
-    cursor.execute("SELECT * FROM investments WHERE user_id=? ORDER BY date DESC", (session['user_id'],))
-    investments = cursor.fetchall()
+        cursor.execute("SELECT * FROM investments WHERE user_id=? ORDER BY date DESC", (session['user_id'],))
+        investments = cursor.fetchall()
 
-    conn.close()
-    return render_template('dashboard.html', name=session['full_name'], balance=balance,
-                           transactions=transactions, investments=investments)
+        return render_template('dashboard.html', name=session['full_name'], balance=balance,
+                               transactions=transactions, investments=investments)
+                               
+    except Exception as e:
+        flash("Erreur de chargement des données.", "error")
+        return redirect('/login')
+    finally:
+        conn.close()
 
 @app.route('/invest', methods=['POST'])
 def invest():
     if 'user_id' not in session:
-        return redirect('/login')
+        return jsonify({'success': False, 'message': 'Non authentifié'}), 401
 
     try:
         amount = float(request.form['amount'])
     except:
-        flash("Montant invalide", "error")
-        return redirect('/dashboard')
+        return jsonify({'success': False, 'message': 'Montant invalide'}), 400
 
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
-    wallet = cursor.fetchone()
-    balance = wallet['balance'] if wallet else 0
-
-    if amount <= 0 or amount > balance:
-        flash("Solde insuffisant ou montant invalide", "error")
-        conn.close()
-        return redirect('/dashboard')
-
     try:
+        cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
+        wallet = cursor.fetchone()
+        balance = wallet['balance'] if wallet else 0
+
+        if amount <= 0 or amount > balance:
+            return jsonify({'success': False, 'message': 'Solde insuffisant ou montant invalide'}), 400
+
         daily_profit = round(amount * 0.1167, 2)
         cursor.execute("UPDATE wallets SET balance = balance - ? WHERE user_id=?", (amount, session['user_id']))
 
@@ -244,14 +277,23 @@ def invest():
                        (session['user_id'], "investissement", amount, reference, "réussi", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
         conn.commit()
-        flash(f"Investissement de {amount} Ar réussi ! Profit quotidien: {daily_profit} Ar", "success")
+        
+        # Récupérer le nouveau solde
+        cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
+        new_wallet = cursor.fetchone()
+        new_balance = new_wallet['balance'] if new_wallet else 0
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Investissement de {amount} Ar réussi ! Profit quotidien: {daily_profit} Ar',
+            'new_balance': new_balance
+        })
+        
     except Exception as e:
         conn.rollback()
-        flash("Erreur lors de l'investissement", "error")
+        return jsonify({'success': False, 'message': 'Erreur lors de l\'investissement'}), 500
     finally:
         conn.close()
-
-    return redirect('/dashboard')
 
 @app.route('/depot', methods=['GET', 'POST'])
 def depot():
@@ -298,10 +340,15 @@ def retrait():
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
-    wallet = cursor.fetchone()
-    balance = wallet['balance'] if wallet else 0
-    conn.close()
+    
+    try:
+        cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
+        wallet = cursor.fetchone()
+        balance = wallet['balance'] if wallet else 0
+    except:
+        balance = 0
+    finally:
+        conn.close()
 
     if request.method == 'POST':
         try:
@@ -389,4 +436,8 @@ def admin_logout():
 if __name__ == "__main__":
     from waitress import serve
     port = int(os.environ.get("PORT", 10000))
+    
+    print("🚀 Anamboary Invest - Server Production")
+    print(f"📍 Port: {port}")
+    
     serve(app, host='0.0.0.0', port=port)

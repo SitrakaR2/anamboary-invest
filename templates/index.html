@@ -5,14 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anamboary Invest - Accueil</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm fixed-top">
   <div class="container">
-    <a class="navbar-brand fw-bold text-warning" href="/">Anamboary Invest</a>
+    <a class="navbar-brand fw-bold text-warning" href="/">
+      <i class="fas fa-chart-line me-2"></i>Anamboary Invest
+    </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -28,38 +31,108 @@
 
 <!-- HERO SECTION -->
 <section class="hero d-flex align-items-center text-center text-light">
-  <div class="container">
-    <h1 class="display-4 fw-bold headline">Investissez intelligemment avec <span class="text-warning">Anamboary Invest</span></h1>
-    <p class="lead subtitle mt-3">Une plateforme moderne pour gérer vos dépôts, retraits et investissements en toute sécurité.</p>
-    <div class="mt-4">
-      <a href="/register" class="btn btn-warning btn-lg px-4 me-3 btn-custom">Créer un compte</a>
-      <a href="/login" class="btn btn-outline-light btn-lg px-4 btn-custom-outline">Se connecter</a>
+    <div class="particles" id="particles"></div>
+    <div class="container position-relative">
+        <div class="floating">
+            <h1 class="display-3 fw-bold mb-4 headline">
+                Investissez intelligemment avec 
+                <span class="text-gradient">Anamboary Invest</span>
+            </h1>
+        </div>
+        <p class="lead subtitle mt-3 mb-5">Une plateforme moderne pour gérer vos dépôts, retraits et investissements en toute sécurité.</p>
+        <div class="mt-4">
+            <a href="/register" class="btn btn-warning btn-lg px-5 py-3 me-3 btn-custom">
+                <i class="fas fa-rocket me-2"></i>Commencer maintenant
+            </a>
+            <a href="/login" class="btn btn-outline-light btn-lg px-5 py-3 btn-custom">
+                <i class="fas fa-sign-in-alt me-2"></i>Se connecter
+            </a>
+        </div>
+        
+        <!-- Stats animation -->
+        <div class="row mt-5 pt-5">
+            <div class="col-md-3">
+                <div class="floating" style="animation-delay: 0.2s">
+                    <h3 class="text-warning fw-bold">11.67%</h3>
+                    <p>Profit Quotidien</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="floating" style="animation-delay: 0.4s">
+                    <h3 class="text-warning fw-bold">100%</h3>
+                    <p>Sécurisé</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="floating" style="animation-delay: 0.6s">
+                    <h3 class="text-warning fw-bold">24/7</h3>
+                    <p>Support</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="floating" style="animation-delay: 0.8s">
+                    <h3 class="text-warning fw-bold">0 Ar</h3>
+                    <p>Frais de Transaction</p>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </section>
 
 <!-- FEATURES -->
 <section class="py-5 bg-light">
   <div class="container text-center">
-    <h2 class="fw-bold mb-4">Pourquoi choisir Anamboary Invest ?</h2>
+    <h2 class="fw-bold mb-5">Pourquoi choisir Anamboary Invest ?</h2>
     <div class="row g-4">
       <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100 p-3 card-custom">
-          <h5 class="fw-bold text-warning">Sécurité</h5>
-          <p>Vos transactions sont protégées et vos données restent confidentielles.</p>
+        <div class="card border-0 shadow-sm h-100 p-4 card-custom floating" style="animation-delay: 0.1s">
+          <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
+          <h5 class="fw-bold text-warning">Sécurité Maximale</h5>
+          <p>Vos transactions sont cryptées et vos données restent confidentielles avec notre système de sécurité avancé.</p>
         </div>
       </div>
       <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100 p-3 card-custom">
-          <h5 class="fw-bold text-warning">Rentabilité</h5>
-          <p>Profitez de taux d'intérêts élevés sur vos investissements quotidiens.</p>
+        <div class="card border-0 shadow-sm h-100 p-4 card-custom floating" style="animation-delay: 0.3s">
+          <i class="fas fa-chart-line fa-3x text-warning mb-3"></i>
+          <h5 class="fw-bold text-warning">Rentabilité Élevée</h5>
+          <p>Profitez de taux d'intérêts compétitifs sur vos investissements avec des profits calculés quotidiennement.</p>
         </div>
       </div>
       <div class="col-md-4">
-        <div class="card border-0 shadow-sm h-100 p-3 card-custom">
-          <h5 class="fw-bold text-warning">Facilité d'utilisation</h5>
-          <p>Interface intuitive, simple et rapide pour tous vos besoins financiers.</p>
+        <div class="card border-0 shadow-sm h-100 p-4 card-custom floating" style="animation-delay: 0.5s">
+          <i class="fas fa-bolt fa-3x text-warning mb-3"></i>
+          <h5 class="fw-bold text-warning">Rapidité</h5>
+          <p>Interface intuitive et processus optimisés pour des transactions rapides et sans tracas.</p>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="py-5 bg-dark text-light">
+  <div class="container">
+    <h2 class="text-center fw-bold mb-5">Comment ça marche ?</h2>
+    <div class="row g-4">
+      <div class="col-md-3 text-center">
+        <div class="step-number">1</div>
+        <h5 class="text-warning mt-3">Inscription</h5>
+        <p>Créez votre compte en 2 minutes</p>
+      </div>
+      <div class="col-md-3 text-center">
+        <div class="step-number">2</div>
+        <h5 class="text-warning mt-3">Dépôt</h5>
+        <p>Ajoutez des fonds à votre portefeuille</p>
+      </div>
+      <div class="col-md-3 text-center">
+        <div class="step-number">3</div>
+        <h5 class="text-warning mt-3">Investissement</h5>
+        <p>Placez votre argent et générez des profits</p>
+      </div>
+      <div class="col-md-3 text-center">
+        <div class="step-number">4</div>
+        <h5 class="text-warning mt-3">Retrait</h5>
+        <p>Retirez vos gains à tout moment</p>
       </div>
     </div>
   </div>
@@ -73,5 +146,31 @@
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+<script>
+// Particle effect
+document.addEventListener('DOMContentLoaded', function() {
+    const particlesContainer = document.getElementById('particles');
+    const particleCount = 30;
+    
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        const size = Math.random() * 10 + 5;
+        const left = Math.random() * 100;
+        const delay = Math.random() * 15;
+        const duration = Math.random() * 10 + 10;
+        
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.left = `${left}%`;
+        particle.style.animationDelay = `${delay}s`;
+        particle.style.animationDuration = `${duration}s`;
+        
+        particlesContainer.appendChild(particle);
+    }
+});
+</script>
 </body>
 </html>
