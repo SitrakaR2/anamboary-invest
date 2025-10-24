@@ -12,6 +12,10 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
   <div class="container">
     <a class="navbar-brand fw-bold text-warning" href="/dashboard">Anamboary Invest</a>
+    <div class="ms-auto">
+      <a href="/dashboard" class="btn btn-outline-light btn-sm me-2">Dashboard</a>
+      <a href="/depot" class="btn btn-success btn-sm me-2">Dépôt</a>
+    </div>
   </div>
 </nav>
 
@@ -20,11 +24,23 @@
         <div class="col-md-6">
             <div class="card p-4 shadow-sm">
                 <h3 class="text-center fw-bold mb-4">Effectuer un retrait</h3>
-                <p class="text-center">Solde disponible: <strong>{{ balance }} Ar</strong></p>
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+                
+                <p class="text-center">Solde disponible: <strong class="text-success">{{ balance }} Ar</strong></p>
                 <form method="POST">
                     <div class="mb-3">
                         <label for="amount" class="form-label">Montant (Ar)</label>
-                        <input type="number" class="form-control" id="amount" name="amount" required>
+                        <input type="number" class="form-control" id="amount" name="amount" required min="1" max="{{ balance }}">
                     </div>
                     <button type="submit" class="btn btn-danger w-100">Retirer</button>
                 </form>
