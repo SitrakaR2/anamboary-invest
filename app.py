@@ -439,5 +439,6 @@ if __name__ == "__main__":
     
     print("🚀 Anamboary Invest - Server Production")
     print(f"📍 Port: {port}")
+    print("📊 Application efa mety mijery...")
     
     serve(app, host='0.0.0.0', port=port)
