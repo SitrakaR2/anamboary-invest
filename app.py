@@ -4,17 +4,20 @@ from datetime import datetime
 import os
 import random
 import string
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "ANAMBOARY_SECRET_KEY"
 
 DB_PATH = "anamboary.db"
 
+
 # ---------------- DATABASE ----------------
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_db():
     conn = get_db()
@@ -64,8 +67,19 @@ def init_db():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_logins (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        login_time TEXT,
+        ip_address TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+    """)
+
     conn.commit()
     conn.close()
+
 
 # ---------------- PAGE ACCUEIL ----------------
 @app.route('/')
@@ -74,26 +88,41 @@ def index():
         return redirect(url_for('dashboard'))
     return render_template('index.html')
 
+
 # ---------------- INSCRIPTION ----------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        full_name = request.form['full_name']
-        phone = request.form['phone']
-        password = request.form['password']
+        full_name = request.form['full_name'].strip()
+        phone = request.form['phone'].strip()
+        password = request.form['password'].strip()
+
+        # Validation des champs
+        if not full_name or not phone or not password:
+            flash("Veuillez remplir tous les champs.", "error")
+            return redirect('/register')
+
+        if len(password) < 4:
+            flash("Le mot de passe doit contenir au moins 4 caractères.", "error")
+            return redirect('/register')
 
         conn = get_db()
         cursor = conn.cursor()
 
+        # Vérifier si le numéro existe déjà
         cursor.execute("SELECT * FROM users WHERE phone_number=?", (phone,))
         if cursor.fetchone():
-            flash("Numéro déjà enregistré", "error")
+            flash("Ce numéro est déjà enregistré.", "error")
+            conn.close()
             return redirect('/register')
 
-        cursor.execute("INSERT INTO users(full_name, phone_number, password) VALUES (?, ?, ?)",
-                       (full_name, phone, password))
-        user_id = cursor.lastrowid
+        # Hasher le mot de passe
+        hashed = generate_password_hash(password)
 
+        # Enregistrement utilisateur
+        cursor.execute("INSERT INTO users(full_name, phone_number, password) VALUES (?, ?, ?)",
+                       (full_name, phone, hashed))
+        user_id = cursor.lastrowid
         cursor.execute("INSERT INTO wallets(user_id, balance) VALUES (?, ?)", (user_id, 0))
         conn.commit()
         conn.close()
@@ -103,27 +132,51 @@ def register():
 
     return render_template('register.html')
 
+
 # ---------------- CONNEXION ----------------
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        phone = request.form['phone']
-        password = request.form['password']
+        phone = request.form['phone'].strip()
+        password = request.form['password'].strip()
+
+        if not phone or not password:
+            flash("Veuillez entrer votre numéro et mot de passe.", "error")
+            return redirect('/login')
 
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE phone_number=? AND password=?", (phone, password))
+        cursor.execute("SELECT * FROM users WHERE phone_number=?", (phone,))
         user = cursor.fetchone()
 
-        if user:
-            session['user_id'] = user['id']
-            session['full_name'] = user['full_name']
-            flash("Connexion réussie !", "success")
-            return redirect('/dashboard')
-        else:
-            flash("Identifiants invalides", "error")
+        if user is None:
+            flash("Ce numéro n’est pas enregistré.", "error")
+            conn.close()
+            return redirect('/login')
+
+        # Vérification du mot de passe hashé
+        if not check_password_hash(user['password'], password):
+            flash("Mot de passe incorrect.", "error")
+            conn.close()
+            return redirect('/login')
+
+        # Connexion réussie
+        session['user_id'] = user['id']
+        session['full_name'] = user['full_name']
+
+        # Enregistrement du login
+        cursor.execute(
+            "INSERT INTO user_logins (user_id, login_time, ip_address) VALUES (?, ?, ?)",
+            (user['id'], datetime.now().strftime("%Y-%m-%d %H:%M:%S"), request.remote_addr)
+        )
+        conn.commit()
+        conn.close()
+
+        flash("Connexion réussie !", "success")
+        return redirect('/dashboard')
 
     return render_template('login.html')
+
 
 # ---------------- DASHBOARD ----------------
 @app.route('/dashboard', methods=['GET', 'POST'])
@@ -134,7 +187,6 @@ def dashboard():
     conn = get_db()
     cursor = conn.cursor()
 
-    # --- POST (investissement) ---
     if request.method == 'POST' and 'amount' in request.form:
         try:
             amount = float(request.form['amount'])
@@ -161,8 +213,7 @@ def dashboard():
         conn.commit()
 
         cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
-        wallet = cursor.fetchone()
-        balance = wallet['balance'] if wallet else 0
+        balance = cursor.fetchone()['balance']
 
         cursor.execute("SELECT * FROM transactions WHERE user_id=? ORDER BY timestamp DESC LIMIT 5", (session['user_id'],))
         transactions = [dict(row) for row in cursor.fetchall()]
@@ -173,7 +224,7 @@ def dashboard():
         conn.close()
         return jsonify(balance=balance, transactions=transactions, investments=investments)
 
-    # --- GET (affichage normal) ---
+    # Affichage normal
     cursor.execute("SELECT balance FROM wallets WHERE user_id=?", (session['user_id'],))
     wallet = cursor.fetchone()
     balance = wallet['balance'] if wallet else 0
@@ -188,7 +239,8 @@ def dashboard():
     return render_template('dashboard.html', name=session['full_name'], balance=balance,
                            transactions=transactions, investments=investments)
 
-# ---------------- DÉPÔT ----------------
+
+# ---------------- DEPOT ----------------
 @app.route('/depot', methods=['GET', 'POST'])
 def depot():
     if 'user_id' not in session:
@@ -219,6 +271,7 @@ def depot():
         return redirect('/dashboard')
 
     return render_template('depot.html')
+
 
 # ---------------- RETRAIT ----------------
 @app.route('/retrait', methods=['GET', 'POST'])
@@ -257,18 +310,18 @@ def retrait():
     conn.close()
     return render_template('retrait.html', balance=balance)
 
-# ---------------- DÉCONNEXION ----------------
+
+# ---------------- LOGOUT ----------------
 @app.route('/logout')
 def logout():
     session.clear()
     flash("Déconnexion réussie", "info")
     return redirect('/')
 
-# ---------------- LANCER APP ----------------
+
+# ---------------- LANCEMENT ----------------
 if __name__ == "__main__":
     if not os.path.exists(DB_PATH):
         open(DB_PATH, 'a').close()
     init_db()
-
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(debug=True)
