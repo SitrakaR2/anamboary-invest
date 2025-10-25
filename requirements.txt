@@ -3,3 +3,4 @@ Werkzeug==2.3.7
 gunicorn==21.2.0
 waitress==2.1.2
 gunicorn==21.2.0
+flask-Mail==0.9.1

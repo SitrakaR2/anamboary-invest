@@ -5,9 +5,20 @@ import os
 import random
 import string
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "ANAMBOARY_SECRET_KEY_RENDER_2025")
+
+# Configuration Email
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'votre.email@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'votre-mot-de-passe-app')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'votre.email@gmail.com')
+
+mail = Mail(app)
 
 # Configuration production
 app.config.update(
@@ -35,6 +46,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         full_name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
         phone_number TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -101,6 +113,321 @@ def generate_reference():
 def validate_phone(phone):
     return phone.strip().isdigit() and len(phone) >= 8
 
+# ---------------- EMAIL FUNCTIONS ----------------
+def send_welcome_email(email, full_name):
+    """Envoyer un email de bienvenue réel"""
+    try:
+        subject = "🎉 Bienvenue sur Anamboary Invest!"
+        
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #f8f9fa;
+                    margin: 0;
+                    padding: 20px;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                }}
+                .content {{
+                    padding: 30px;
+                    color: #333;
+                    line-height: 1.6;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: linear-gradient(45deg, #ffc107, #ff8c00);
+                    color: black;
+                    padding: 12px 30px;
+                    text-decoration: none;
+                    border-radius: 25px;
+                    font-weight: bold;
+                    margin: 20px 0;
+                }}
+                .features {{
+                    background: #f8f9fa;
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                }}
+                .footer {{
+                    background: #343a40;
+                    color: white;
+                    padding: 20px;
+                    text-align: center;
+                    font-size: 14px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🚀 Anamboary Invest</h1>
+                    <p>Votre succès financier commence ici</p>
+                </div>
+                
+                <div class="content">
+                    <h2>Bonjour {full_name} !</h2>
+                    <p>Nous sommes ravis de vous accueillir sur <strong>Anamboary Invest</strong>, la plateforme d'investissement la plus sécurisée de Madagascar.</p>
+                    
+                    <div class="features">
+                        <p><strong>🎯 Ce que vous pouvez faire maintenant :</strong></p>
+                        <ul>
+                            <li>✅ Faire votre premier dépôt</li>
+                            <li>✅ Investir avec 11.67% de profit quotidien</li>
+                            <li>✅ Suivre vos performances en temps réel</li>
+                            <li>✅ Retirer vos gains à tout moment</li>
+                        </ul>
+                    </div>
+                    
+                    <p style="text-align: center;">
+                        <a href="https://votre-site.com/dashboard" class="button">
+                            Commencer à Investir
+                        </a>
+                    </p>
+                    
+                    <p><strong>📞 Besoin d'aide ?</strong><br>
+                    Notre équipe de support est disponible 24h/24 et 7j/7 pour vous accompagner.</p>
+                </div>
+                
+                <div class="footer">
+                    <p>© 2025 Anamboary Invest. Tous droits réservés.</p>
+                    <p>Cet email a été envoyé à {email}</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg = Message(
+            subject=subject,
+            recipients=[email],
+            html=html_body
+        )
+        
+        mail.send(msg)
+        print(f"✅ Email de bienvenue envoyé à: {email}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erreur envoi email à {email}: {str(e)}")
+        return False
+
+def send_transaction_email(email, full_name, transaction_type, amount, reference=None):
+    """Envoyer un email pour les transactions"""
+    try:
+        if transaction_type == "dépôt":
+            subject = "💰 Dépôt réussi - Anamboary Invest"
+            action = "déposé"
+            color = "#28a745"
+            emoji = "💰"
+        elif transaction_type == "retrait":
+            subject = "💸 Retrait réussi - Anamboary Invest"
+            action = "retiré"
+            color = "#dc3545"
+            emoji = "💸"
+        else:
+            subject = "📈 Investissement réussi - Anamboary Invest"
+            action = "investi"
+            color = "#ffc107"
+            emoji = "📈"
+        
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #f8f9fa;
+                    margin: 0;
+                    padding: 20px;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    overflow: hidden;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    background: {color};
+                    color: white;
+                    padding: 25px;
+                    text-align: center;
+                }}
+                .content {{
+                    padding: 25px;
+                    color: #333;
+                    line-height: 1.6;
+                }}
+                .transaction-details {{
+                    background: #f8f9fa;
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                }}
+                .footer {{
+                    background: #343a40;
+                    color: white;
+                    padding: 20px;
+                    text-align: center;
+                    font-size: 14px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2>{emoji} {subject}</h2>
+                </div>
+                
+                <div class="content">
+                    <p>Bonjour <strong>{full_name}</strong>,</p>
+                    
+                    <p>Votre transaction a été effectuée avec succès !</p>
+                    
+                    <div class="transaction-details">
+                        <h3>Détails de la transaction :</h3>
+                        <p><strong>Type :</strong> {transaction_type}</p>
+                        <p><strong>Montant :</strong> {amount} Ar</p>
+                        <p><strong>Statut :</strong> ✅ Réussi</p>
+                        {f'<p><strong>Référence :</strong> {reference}</p>' if reference else ''}
+                        <p><strong>Date :</strong> {datetime.now().strftime("%d/%m/%Y à %H:%M")}</p>
+                    </div>
+                    
+                    <p>Vous avez {action} <strong>{amount} Ar</strong> avec succès.</p>
+                    
+                    <p>Pour toute question, n'hésitez pas à contacter notre support.</p>
+                </div>
+                
+                <div class="footer">
+                    <p>© 2025 Anamboary Invest - Plateforme sécurisée d'investissement</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg = Message(
+            subject=subject,
+            recipients=[email],
+            html=html_body
+        )
+        
+        mail.send(msg)
+        print(f"✅ Email transaction envoyé à: {email}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erreur envoi email transaction à {email}: {str(e)}")
+        return False
+
+def send_investment_email(email, full_name, amount, daily_profit):
+    """Envoyer un email pour les investissements"""
+    try:
+        monthly_profit = daily_profit * 30
+        
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #f8f9fa;
+                    margin: 0;
+                    padding: 20px;
+                }}
+                .container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                }}
+                .profit-card {{
+                    background: linear-gradient(135deg, #28a745, #20c997);
+                    color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                    text-align: center;
+                }}
+                .content {{
+                    padding: 30px;
+                    line-height: 1.6;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎉 Investissement Réussi !</h1>
+                    <p>Votre argent travaille pour vous</p>
+                </div>
+                
+                <div class="content">
+                    <p>Félicitations <strong>{full_name}</strong> !</p>
+                    
+                    <p>Votre investissement de <strong>{amount} Ar</strong> a été placé avec succès.</p>
+                    
+                    <div class="profit-card">
+                        <h3>📈 Votre Profit Quotidien</h3>
+                        <h2>{daily_profit} Ar</h2>
+                        <p>Soit {monthly_profit} Ar par mois</p>
+                    </div>
+                    
+                    <p><strong>Prochain profit :</strong> Dans 24 heures</p>
+                    <p><strong>Disponibilité :</strong> Retrait possible à tout moment</p>
+                    
+                    <p>Merci de nous faire confiance pour faire fructifier votre capital.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg = Message(
+            subject="📈 Investissement placé avec succès - Anamboary Invest",
+            recipients=[email],
+            html=html_body
+        )
+        
+        mail.send(msg)
+        print(f"✅ Email investissement envoyé à: {email}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erreur envoi email investissement à {email}: {str(e)}")
+        return False
+
 # ---------------- SESSION MANAGEMENT ----------------
 @app.before_request
 def make_session_permanent():
@@ -120,10 +447,11 @@ def register():
         
     if request.method == 'POST':
         full_name = request.form['full_name'].strip()
+        email = request.form['email'].strip()
         phone = request.form['phone'].strip()
         password = request.form['password'].strip()
 
-        if not full_name or not phone or not password:
+        if not full_name or not email or not phone or not password:
             flash("Veuillez remplir tous les champs.", "error")
             return render_template('register.html')
 
@@ -135,23 +463,38 @@ def register():
             flash("Numéro de téléphone invalide.", "error")
             return render_template('register.html')
 
+        # Validation email simple
+        if '@' not in email or '.' not in email:
+            flash("Adresse email invalide.", "error")
+            return render_template('register.html')
+
         conn = get_db()
         cursor = conn.cursor()
 
         try:
+            # Vérifier si l'email existe déjà
+            cursor.execute("SELECT * FROM users WHERE email=?", (email,))
+            if cursor.fetchone():
+                flash("Cet email est déjà enregistré.", "error")
+                return render_template('register.html')
+
+            # Vérifier si le numéro existe déjà
             cursor.execute("SELECT * FROM users WHERE phone_number=?", (phone,))
             if cursor.fetchone():
                 flash("Ce numéro est déjà enregistré.", "error")
                 return render_template('register.html')
 
             hashed = generate_password_hash(password)
-            cursor.execute("INSERT INTO users(full_name, phone_number, password) VALUES (?, ?, ?)",
-                           (full_name, phone, hashed))
+            cursor.execute("INSERT INTO users(full_name, email, phone_number, password) VALUES (?, ?, ?, ?)",
+                           (full_name, email, phone, hashed))
             user_id = cursor.lastrowid
             cursor.execute("INSERT INTO wallets(user_id, balance) VALUES (?, ?)", (user_id, 0))
             conn.commit()
             
-            flash("Inscription réussie ! Veuillez vous connecter.", "success")
+            # Envoyer email de bienvenue
+            send_welcome_email(email, full_name)
+            
+            flash("Inscription réussie ! Un email de bienvenue vous a été envoyé.", "success")
             return redirect('/login')
         except Exception as e:
             conn.rollback()
@@ -168,18 +511,19 @@ def login():
         return redirect('/dashboard')
         
     if request.method == 'POST':
-        phone = request.form['phone'].strip()
+        login_input = request.form['login_input'].strip()
         password = request.form['password'].strip()
 
-        if not phone or not password:
-            flash("Veuillez entrer votre numéro et mot de passe.", "error")
+        if not login_input or not password:
+            flash("Veuillez entrer votre email/téléphone et mot de passe.", "error")
             return render_template('login.html')
 
         conn = get_db()
         cursor = conn.cursor()
         
         try:
-            cursor.execute("SELECT * FROM users WHERE phone_number=?", (phone,))
+            # Essayer de trouver par email ou téléphone
+            cursor.execute("SELECT * FROM users WHERE email=? OR phone_number=?", (login_input, login_input))
             user = cursor.fetchone()
 
             if user and check_password_hash(user['password'], password):
@@ -187,6 +531,7 @@ def login():
                 session['user_id'] = user['id']
                 session['full_name'] = user['full_name']
                 session['phone'] = user['phone_number']
+                session['email'] = user['email']
                 
                 cursor.execute(
                     "INSERT INTO user_logins (user_id, login_time, ip_address) VALUES (?, ?, ?)",
@@ -197,7 +542,7 @@ def login():
                 flash(f"Bienvenue {user['full_name']} !", "success")
                 return redirect('/dashboard')
             else:
-                flash("Numéro ou mot de passe incorrect.", "error")
+                flash("Email/téléphone ou mot de passe incorrect.", "error")
                 return render_template('login.html')
         except Exception as e:
             flash("Erreur de connexion. Veuillez réessayer.", "error")
@@ -283,9 +628,12 @@ def invest():
         new_wallet = cursor.fetchone()
         new_balance = new_wallet['balance'] if new_wallet else 0
         
+        # Envoyer email d'investissement
+        send_investment_email(session['email'], session['full_name'], amount, daily_profit)
+        
         return jsonify({
             'success': True, 
-            'message': f'Investissement de {amount} Ar réussi ! Profit quotidien: {daily_profit} Ar',
+            'message': f'Investissement de {amount} Ar réussi ! Profit quotidien: {daily_profit} Ar. Un email de confirmation vous a été envoyé.',
             'new_balance': new_balance
         })
         
@@ -322,7 +670,11 @@ def depot():
                            (session['user_id'], "dépôt", amount, reference, "réussi", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
             conn.commit()
-            flash(f"Dépôt de {amount} Ar effectué avec succès !", "success")
+            
+            # Envoyer email de confirmation
+            send_transaction_email(session['email'], session['full_name'], "dépôt", amount, reference)
+            
+            flash(f"Dépôt de {amount} Ar effectué avec succès ! Un email de confirmation vous a été envoyé.", "success")
         except Exception as e:
             conn.rollback()
             flash("Erreur lors du dépôt", "error")
@@ -372,7 +724,11 @@ def retrait():
                            (session['user_id'], "retrait", amount, reference, "réussi", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
             conn.commit()
-            flash(f"Retrait de {amount} Ar effectué avec succès !", "success")
+            
+            # Envoyer email de confirmation
+            send_transaction_email(session['email'], session['full_name'], "retrait", amount, reference)
+            
+            flash(f"Retrait de {amount} Ar effectué avec succès ! Un email de confirmation vous a été envoyé.", "success")
         except Exception as e:
             conn.rollback()
             flash("Erreur lors du retrait", "error")
@@ -411,7 +767,7 @@ def admin_dashboard():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, full_name, phone_number, created_at FROM users")
+    cursor.execute("SELECT id, full_name, email, phone_number, created_at FROM users")
     users = cursor.fetchall()
 
     cursor.execute("""
@@ -439,6 +795,7 @@ if __name__ == "__main__":
     
     print("🚀 Anamboary Invest - Server Production")
     print(f"📍 Port: {port}")
+    print("📧 Système d'emails activé")
     print("📊 Application efa mety mijery...")
     
     serve(app, host='0.0.0.0', port=port)
